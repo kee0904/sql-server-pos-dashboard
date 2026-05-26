@@ -1,0 +1,1831 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQL Insights Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #17202a;
+      --muted: #667085;
+      --line: #d9e0ea;
+      --accent: #14746f;
+      --accent-strong: #0b5552;
+      --amber: #b7791f;
+      --rose: #c2415b;
+      --green: #1f8a55;
+      --shadow: 0 10px 24px rgba(20, 31, 43, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .brand span,
+    .status span,
+    label,
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--amber);
+      box-shadow: 0 0 0 4px rgba(183, 121, 31, 0.13);
+    }
+
+    .dot.connected {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(31, 138, 85, 0.13);
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      background: #fbfcfe;
+      padding: 22px;
+      overflow: auto;
+    }
+
+    main {
+      padding: 26px;
+      overflow: auto;
+    }
+
+    .panel,
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel h2,
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 15px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(20, 116, 111, 0.13);
+    }
+
+    input:disabled,
+    select:disabled {
+      background: #eef2f6;
+      color: #8a94a6;
+      cursor: not-allowed;
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    .quick-reports {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .quick-reports button {
+      min-height: 36px;
+      padding: 8px 10px;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 10px 13px;
+      cursor: pointer;
+      background: #e7edf4;
+      color: var(--ink);
+      min-height: 42px;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    button.primary:hover {
+      background: var(--accent-strong);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .card {
+      padding: 18px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 7px;
+    }
+
+    .metric-value {
+      font-size: 27px;
+      font-weight: 750;
+      line-height: 1.1;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .bar-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .track {
+      height: 10px;
+      background: #edf1f6;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: inherit;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px;
+      background: #fbfcfe;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 18px;
+      margin-top: 4px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .analysis-block {
+      border-top: 1px solid var(--line);
+      margin-top: 16px;
+      padding-top: 16px;
+    }
+
+    .analysis-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .analysis-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid #edf1f6;
+      padding-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .analysis-list li:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .analysis-list span:last-child {
+      color: var(--ink);
+      font-weight: 650;
+      text-align: right;
+    }
+
+    .alert {
+      border-left: 4px solid var(--amber);
+      background: #fff8eb;
+      padding: 14px 15px;
+      color: #6f480d;
+      border-radius: 8px;
+      margin-bottom: 18px;
+    }
+
+    .connection-message {
+      min-height: 40px;
+      margin-top: 12px;
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #fff8eb;
+      color: #6f480d;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .connection-message.success {
+      background: #e8f5ef;
+      color: #16603b;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      max-height: calc(100vh - 210px);
+      scrollbar-gutter: stable both-edges;
+    }
+
+    .table-wrap:focus {
+      outline: 3px solid rgba(20, 116, 111, 0.16);
+      outline-offset: 2px;
+    }
+
+    .report-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .report-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .print-stage {
+      overflow: auto;
+      background: #b8bec9;
+      border: 1px solid #9aa3b1;
+      border-radius: 8px;
+      padding: 22px;
+      max-height: calc(100vh - 230px);
+    }
+
+    .print-page {
+      width: 1024px;
+      min-height: 1320px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #d99a16;
+      box-shadow: 0 18px 34px rgba(18, 27, 38, 0.28);
+      padding: 56px 80px;
+      color: #000;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .print-title {
+      text-align: center;
+      font-size: 31px;
+      line-height: 1.2;
+      font-weight: 700;
+      margin: 0 0 24px;
+      letter-spacing: 0;
+    }
+
+    .print-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+      margin-bottom: 56px;
+    }
+
+    .report-table {
+      width: 100%;
+      min-width: 0;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      background: #fff;
+    }
+
+    .report-table th,
+    .report-table td {
+      border: 1px solid #111;
+      height: 30px;
+      padding: 5px 7px;
+      color: #000;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+
+    .report-table th {
+      background: #fff;
+      position: static;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .report-label {
+      width: 280px;
+      font-weight: 700;
+      vertical-align: top;
+    }
+
+    .report-day {
+      width: 40px;
+      background: #d9d9d9;
+      text-align: center;
+    }
+
+    .report-amount {
+      width: 150px;
+      text-align: right;
+    }
+
+    .report-total-label {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .report-total-value {
+      text-align: right;
+    }
+
+    .chart-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      min-height: 260px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 14px 12px;
+      background: #fff;
+    }
+
+    .bar-item {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 8px;
+      min-width: 46px;
+      height: 220px;
+      align-items: end;
+    }
+
+    .bar {
+      width: 100%;
+      min-height: 2px;
+      border-radius: 5px 5px 0 0;
+      background: var(--accent);
+    }
+
+    .bar-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      white-space: nowrap;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      max-height: 78px;
+    }
+
+    .chart-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      header,
+      aside,
+      .alert,
+      .section:not(#print-report-preview),
+      .report-toolbar {
+        display: none !important;
+      }
+
+      .app {
+        display: block;
+      }
+
+      main {
+        padding: 0;
+      }
+
+      #print-report-preview {
+        display: block !important;
+        border: 0;
+        padding: 0;
+        margin: 0;
+      }
+
+      .print-stage {
+        border: 0;
+        padding: 0;
+        max-height: none;
+        overflow: visible;
+        background: #fff;
+      }
+
+      .print-page {
+        width: auto;
+        min-height: auto;
+        border: 0;
+        box-shadow: none;
+        padding: 36px;
+      }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1100px;
+      background: white;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      white-space: nowrap;
+      height: 52px;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 650;
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      user-select: none;
+    }
+
+    #preview-table {
+      table-layout: fixed;
+      width: max-content;
+    }
+
+    #preview-table th {
+      position: sticky;
+      min-width: 120px;
+    }
+
+    .resize-handle {
+      position: absolute;
+      top: 0;
+      right: -3px;
+      width: 7px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 2;
+      touch-action: none;
+    }
+
+    .resize-handle:hover,
+    .resize-handle.active {
+      background: rgba(20, 116, 111, 0.25);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      background: #e8f5ef;
+      color: var(--green);
+      font-weight: 650;
+    }
+
+    @media (max-width: 1000px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metrics,
+      .workspace {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      main,
+      aside {
+        padding: 16px;
+      }
+
+      .metrics,
+      .workspace,
+      .analysis-grid,
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <h1>SQL Insights Dashboard</h1>
+        <span>Run a query, inspect data quality, and preview results from one screen.</span>
+      </div>
+      <div class="status">
+        <span class="dot" id="connection-dot" aria-hidden="true"></span>
+        <span id="connection-status">Not connected</span>
+      </div>
+    </header>
+
+    <aside>
+      <section class="panel">
+        <h2>Connection</h2>
+        <div class="field">
+          <label for="server-instance">SQL Server Instance Name</label>
+          <input id="server-instance" value=".\A2019" list="instance-options" aria-label="SQL Server instance name">
+          <datalist id="instance-options">
+            <option value=".\A2007"></option>
+            <option value=".\A2019"></option>
+            <option value=".\A2022"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="username">User Name</label>
+          <input id="username" placeholder="Leave blank for Windows login" autocomplete="username" aria-label="SQL Server user name">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Leave blank for Windows login" autocomplete="current-password" aria-label="SQL Server password">
+        </div>
+        <div class="field">
+          <label for="database">Database Name</label>
+          <select id="database" aria-label="Database name" disabled>
+            <option>Connect to SQL Server first</option>
+          </select>
+          <span class="small" id="database-size">Database size will appear after selection.</span>
+        </div>
+        <div class="button-row">
+          <button class="primary" type="button" id="connect-button">Connect</button>
+          <button type="button" id="refresh-connection" title="Refresh database list">Refresh</button>
+        </div>
+        <div class="connection-message" id="connection-message">Connect to SQL Server before choosing a database.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Query</h2>
+        <div class="field">
+          <label for="template">Template</label>
+          <select id="template" aria-label="Query template">
+            <option value="pos">POS Header</option>
+            <option value="posdtl">POS Detail</option>
+            <option value="pospayment">POS Payment</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="date-from">Date From</label>
+          <input id="date-from" type="date" aria-label="Date from">
+        </div>
+        <div class="field">
+          <label for="date-to">Date To</label>
+          <input id="date-to" type="date" aria-label="Date to">
+        </div>
+        <div class="field">
+          <label for="item-group">Item Group</label>
+          <select id="item-group" aria-label="Item group" disabled>
+            <option value="">All item groups</option>
+          </select>
+        </div>
+        <div class="button-row">
+          <button type="button" id="apply-filters">Apply Filters</button>
+          <button type="button" id="clear-filters">Clear</button>
+        </div>
+        <div class="field">
+          <label>Quick Reports</label>
+          <div class="quick-reports" aria-label="Quick reports">
+            <button type="button" data-report="daily-sales">Daily Sales</button>
+            <button type="button" data-report="daily-transactions">Daily Transactions</button>
+            <button type="button" data-report="item-sales">Item Sales</button>
+            <button type="button" data-report="payment-summary">Payment Summary</button>
+            <button type="button" data-report="top-items">Top Items</button>
+            <button type="button" data-report="cancelled-sales">Cancelled Sales</button>
+            <button type="button" data-report="daily-sales-preview">Report Preview</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Power BI Tool</label>
+          <div class="button-row">
+            <button type="button" id="export-csv">Export CSV</button>
+            <button type="button" id="generate-powerbi">Power BI Query</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="sql">SQL</label>
+          <textarea id="sql">select * from pos</textarea>
+        </div>
+        <button class="primary" type="button" id="run-query-button" style="width: 100%;">Run Query</button>
+      </section>
+    </aside>
+
+    <main>
+      <div class="metrics" hidden>
+        <article class="card">
+          <div class="metric-label">Rows Returned</div>
+          <div class="metric-value" id="rows-metric">0</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Columns</div>
+          <div class="metric-value" id="columns-metric">0</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Null Cells</div>
+          <div class="metric-value" id="nulls-metric">0%</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Runtime</div>
+          <div class="metric-value" id="runtime-metric">0 ms</div>
+        </article>
+      </div>
+
+      <div class="alert" id="query-message">
+        Connect to SQL Server, select a database, then run a SELECT query.
+      </div>
+
+      <section class="section" id="report-analysis" hidden>
+        <h2 class="section-title">Report Analysis</h2>
+        <div class="analysis-grid" id="analysis-summary"></div>
+        <div class="analysis-block">
+          <h2 class="section-title">Breakdown</h2>
+          <ul class="analysis-list" id="analysis-breakdown"></ul>
+        </div>
+      </section>
+
+      <section class="section" id="print-report-preview" hidden>
+        <div class="report-toolbar">
+          <h2 class="section-title">Report Preview</h2>
+          <div class="report-actions">
+            <button type="button" id="print-report">Print</button>
+            <button type="button" id="hide-report-preview">Hide Preview</button>
+          </div>
+        </div>
+        <div class="print-stage">
+          <div class="print-page" id="print-page"></div>
+        </div>
+      </section>
+
+      <section class="section" id="chart-preview" hidden>
+        <h2 class="section-title">Bar Chart Preview</h2>
+        <div class="chart-panel">
+          <div class="bar-chart" id="bar-chart" aria-label="Bar chart preview"></div>
+          <div class="chart-note" id="chart-note"></div>
+        </div>
+      </section>
+
+      <section class="section" id="powerbi-panel" hidden>
+        <h2 class="section-title">Power BI Tool</h2>
+        <div class="field">
+          <label for="powerbi-query">Power Query SQL</label>
+          <textarea id="powerbi-query" readonly></textarea>
+        </div>
+        <div class="small">Use this in Power BI Desktop with SQL Server as the data source. CSV export uses the latest query result shown in the preview table.</div>
+      </section>
+
+      <div class="workspace" hidden>
+        <section class="section">
+          <h2 class="section-title">Null Health</h2>
+          <div class="bar-list" id="null-health">
+            <p class="small">Run a query to calculate null percentages by column.</p>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Numeric Summary</h2>
+          <div class="stats-grid" id="numeric-summary">
+            <div class="stat"><span class="small">Run a query</span><b>No numeric data yet</b></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="section">
+        <h2 class="section-title">Preview Table</h2>
+        <div class="table-wrap" tabindex="0" aria-label="Scrollable query results">
+          <table id="preview-table">
+            <thead><tr><th>Waiting</th></tr></thead>
+            <tbody><tr><td>Run a query to preview rows.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const templates = {
+      pos: `select * from pos`,
+      posdtl: `select * from posdtl`,
+      pospayment: `select * from pospayment`
+    };
+
+    document.getElementById("template").addEventListener("change", (event) => {
+      document.getElementById("sql").value = templates[event.target.value];
+    });
+
+    const connectButton = document.getElementById("connect-button");
+    const refreshConnection = document.getElementById("refresh-connection");
+    const databaseSelect = document.getElementById("database");
+    const databaseSize = document.getElementById("database-size");
+    const connectionDot = document.getElementById("connection-dot");
+    const connectionStatus = document.getElementById("connection-status");
+    const connectionMessage = document.getElementById("connection-message");
+    const serverInstance = document.getElementById("server-instance");
+    const username = document.getElementById("username");
+    const password = document.getElementById("password");
+    const runQueryButton = document.getElementById("run-query-button");
+    const sqlInput = document.getElementById("sql");
+    const templateSelect = document.getElementById("template");
+    const dateFrom = document.getElementById("date-from");
+    const dateTo = document.getElementById("date-to");
+    const itemGroup = document.getElementById("item-group");
+    const applyFilters = document.getElementById("apply-filters");
+    const clearFilters = document.getElementById("clear-filters");
+    const queryMessage = document.getElementById("query-message");
+    const previewTable = document.getElementById("preview-table");
+    const reportAnalysis = document.getElementById("report-analysis");
+    const analysisSummary = document.getElementById("analysis-summary");
+    const analysisBreakdown = document.getElementById("analysis-breakdown");
+    const printReportPreview = document.getElementById("print-report-preview");
+    const printPage = document.getElementById("print-page");
+    const printReport = document.getElementById("print-report");
+    const hideReportPreview = document.getElementById("hide-report-preview");
+    const chartPreview = document.getElementById("chart-preview");
+    const barChart = document.getElementById("bar-chart");
+    const chartNote = document.getElementById("chart-note");
+    const exportCsv = document.getElementById("export-csv");
+    const generatePowerBi = document.getElementById("generate-powerbi");
+    const powerBiPanel = document.getElementById("powerbi-panel");
+    const powerBiQuery = document.getElementById("powerbi-query");
+    const nullHealth = document.getElementById("null-health");
+    const numericSummary = document.getElementById("numeric-summary");
+    const rowsMetric = document.getElementById("rows-metric");
+    const columnsMetric = document.getElementById("columns-metric");
+    const nullsMetric = document.getElementById("nulls-metric");
+    const runtimeMetric = document.getElementById("runtime-metric");
+    let latestResult = { columns: [], rows: [] };
+
+    async function connectToSqlServer() {
+      connectButton.disabled = true;
+      refreshConnection.disabled = true;
+      databaseSelect.disabled = true;
+      connectButton.textContent = "Connecting...";
+      connectionStatus.textContent = "Connecting...";
+      connectionMessage.classList.remove("success");
+      connectionMessage.textContent = `Connecting to ${serverInstance.value || "SQL Server"}...`;
+
+      try {
+        const response = await fetch("/api/databases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serverInstance: serverInstance.value,
+            username: username.value,
+            password: password.value
+          })
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to connect to SQL Server.");
+        }
+
+        databaseSelect.disabled = false;
+        databaseSelect.innerHTML = `<option value="">Select database</option>${payload.databases
+          .map((database) => `<option>${database}</option>`)
+          .join("")}`;
+        connectButton.textContent = "Connected";
+        connectionDot.classList.add("connected");
+        connectionStatus.textContent = "Connected to SQL Server";
+        connectionMessage.classList.add("success");
+        connectionMessage.textContent = `Connected to ${serverInstance.value}. ${payload.databases.length} databases found.`;
+        await loadItemGroups();
+        await loadDatabaseSize();
+      } catch (error) {
+        databaseSelect.innerHTML = `<option>Connect to SQL Server first</option>`;
+        connectButton.textContent = "Connect";
+        connectionDot.classList.remove("connected");
+        connectionStatus.textContent = "Not connected";
+        connectionMessage.classList.remove("success");
+        connectionMessage.textContent = error.message;
+      } finally {
+        connectButton.disabled = false;
+        refreshConnection.disabled = false;
+      }
+    }
+
+    connectButton.addEventListener("click", connectToSqlServer);
+    refreshConnection.addEventListener("click", connectToSqlServer);
+    databaseSelect.addEventListener("change", async () => {
+      await loadItemGroups();
+      await loadDatabaseSize();
+    });
+    applyFilters.addEventListener("click", () => {
+      sqlInput.value = buildFilteredQuery();
+      queryMessage.textContent = "Filters applied to the SQL query. Click Run Query to view results.";
+    });
+    clearFilters.addEventListener("click", () => {
+      dateFrom.value = "";
+      dateTo.value = "";
+      itemGroup.value = "";
+      sqlInput.value = templates[templateSelect.value];
+      queryMessage.textContent = "Filters cleared.";
+    });
+    document.querySelectorAll("[data-report]").forEach((button) => {
+      button.addEventListener("click", () => {
+        sqlInput.value = buildQuickReportQuery(button.dataset.report);
+        queryMessage.textContent = `${button.textContent} report ready. Click Run Query to view results.`;
+      });
+    });
+    printReport.addEventListener("click", () => window.print());
+    hideReportPreview.addEventListener("click", () => {
+      printReportPreview.hidden = true;
+    });
+    exportCsv.addEventListener("click", exportLatestCsv);
+    generatePowerBi.addEventListener("click", showPowerBiQuery);
+
+    function buildFilteredQuery() {
+      const type = templateSelect.value;
+      const filters = [];
+      const from = dateFrom.value;
+      const to = dateTo.value;
+      const group = itemGroup.value;
+
+      if (type === "pos") {
+        if (from) filters.push(`CreatedTime >= '${from}'`);
+        if (to) filters.push(`CreatedTime < dateadd(day, 1, '${to}')`);
+        if (group) filters.push(`exists (
+    select 1
+    from PosDtl d
+    left join Item i on i.ItemCode = d.ItemCode
+    where d.DocKey = Pos.DocKey
+      and i.ItemGroup = '${escapeSql(group)}'
+  )`);
+        return `select * from Pos${filters.length ? `\nwhere ${filters.join("\n  and ")}` : ""}`;
+      }
+
+      if (type === "pospayment") {
+        if (from) filters.push(`exists (select 1 from Pos p where p.DocKey = PosPayment.DocKey and p.CreatedTime >= '${from}')`);
+        if (to) filters.push(`exists (select 1 from Pos p where p.DocKey = PosPayment.DocKey and p.CreatedTime < dateadd(day, 1, '${to}'))`);
+        if (group) filters.push(`exists (
+    select 1
+    from PosDtl d
+    left join Item i on i.ItemCode = d.ItemCode
+    where d.DocKey = PosPayment.DocKey
+      and i.ItemGroup = '${escapeSql(group)}'
+  )`);
+        return `select * from PosPayment${filters.length ? `\nwhere ${filters.join("\n  and ")}` : ""}`;
+      }
+
+      const detailFilters = [];
+      if (from) detailFilters.push(`p.CreatedTime >= '${from}'`);
+      if (to) detailFilters.push(`p.CreatedTime < dateadd(day, 1, '${to}')`);
+      if (group) detailFilters.push(`i.ItemGroup = '${escapeSql(group)}'`);
+      return `select
+  d.*,
+  p.DocDate,
+  p.CreatedTime,
+  i.ItemGroup
+from PosDtl d
+left join Pos p on p.DocKey = d.DocKey
+left join Item i on i.ItemCode = d.ItemCode${detailFilters.length ? `\nwhere ${detailFilters.join("\n  and ")}` : ""}`;
+    }
+
+    function escapeSql(value) {
+      return String(value).replace(/'/g, "''");
+    }
+
+    function buildQuickReportQuery(report) {
+      const posFilters = buildPosFilters("p");
+      const detailFilters = buildDetailFilters("p", "i");
+
+      if (report === "daily-sales") {
+        return `select
+  cast(p.CreatedTime as date) as SalesDate,
+  count(distinct p.DocKey) as BillCount,
+  sum(d.Qty) as TotalQty,
+  sum(d.SubTotalExTax) as TotalSalesExcludeTax,
+  sum(d.Tax) as TotalTaxAmount,
+  sum(d.Amount) as TotalAmount
+from PosDtl d
+left join Pos p on p.DocKey = d.DocKey
+left join Item i on i.ItemCode = d.ItemCode${detailFilters.length ? `\nwhere ${detailFilters.join("\n  and ")}` : ""}
+group by cast(p.CreatedTime as date)
+order by SalesDate`;
+      }
+
+      if (report === "daily-sales-preview") {
+        return `select
+  cast(p.CreatedTime as date) as SalesDate,
+  sum(d.SubTotalExTax) as TotalSalesExcludeTax,
+  sum(d.Tax) as TotalTaxAmount,
+  sum(d.Amount) as FinalTotal
+from PosDtl d
+left join Pos p on p.DocKey = d.DocKey
+left join Item i on i.ItemCode = d.ItemCode${detailFilters.length ? `\nwhere ${detailFilters.join("\n  and ")}` : ""}
+group by cast(p.CreatedTime as date)
+order by SalesDate`;
+      }
+
+      if (report === "daily-transactions") {
+        return `select
+  cast(p.CreatedTime as date) as TransactionDate,
+  count(*) as TotalTransactions,
+  count(case when isnull(p.Cancelled, 'F') = 'T' then 1 end) as CancelledTransactions,
+  count(case when isnull(p.Cancelled, 'F') <> 'T' then 1 end) as CompletedTransactions,
+  sum(p.FinalTotal) as FinalTotal
+from Pos p${posFilters.length ? `\nwhere ${posFilters.join("\n  and ")}` : ""}
+group by cast(p.CreatedTime as date)
+order by TransactionDate`;
+      }
+
+      if (report === "item-sales") {
+        return `select
+  d.ItemCode,
+  d.Description,
+  i.ItemGroup,
+  sum(d.Qty) as Qty,
+  sum(d.SubTotal) as SubTotal,
+  sum(d.DiscountAmt) as Discount,
+  sum(d.Amount) as Amount
+from PosDtl d
+left join Pos p on p.DocKey = d.DocKey
+left join Item i on i.ItemCode = d.ItemCode${detailFilters.length ? `\nwhere ${detailFilters.join("\n  and ")}` : ""}
+group by d.ItemCode, d.Description, i.ItemGroup
+order by Amount desc`;
+      }
+
+      if (report === "payment-summary") {
+        return `select
+  cast(p.CreatedTime as date) as PaymentDate,
+  sum(p.CashPayment) as CashPayment,
+  sum(p.CCPayment) as CreditCardPayment,
+  sum(p.DCPayment) as DebitCardPayment,
+  sum(p.VoucherPayment) as VoucherPayment,
+  sum(p.EWalletPayment) as EWalletPayment,
+  sum(p.CustomPayment) as CustomPayment,
+  sum(p.FinalTotal) as FinalTotal
+from Pos p${posFilters.length ? `\nwhere ${posFilters.join("\n  and ")}` : ""}
+group by cast(p.CreatedTime as date)
+order by PaymentDate`;
+      }
+
+      if (report === "top-items") {
+        return `select top 10
+  d.ItemCode,
+  d.Description,
+  i.ItemGroup,
+  sum(d.Qty) as Qty,
+  sum(d.Amount) as Amount
+from PosDtl d
+left join Pos p on p.DocKey = d.DocKey
+left join Item i on i.ItemCode = d.ItemCode${detailFilters.length ? `\nwhere ${detailFilters.join("\n  and ")}` : ""}
+group by d.ItemCode, d.Description, i.ItemGroup
+order by Amount desc`;
+      }
+
+      if (report === "cancelled-sales") {
+        return `select
+  p.DocNo,
+  p.DocDate,
+  p.CreatedTime,
+  p.UserID,
+  p.TerminalID,
+  p.FinalTotal,
+  p.Cancelled,
+  p.Status
+from Pos p
+where ${[...posFilters, "isnull(p.Cancelled, 'F') = 'T'"].join("\n  and ")}
+order by p.CreatedTime desc`;
+      }
+
+      return buildFilteredQuery();
+    }
+
+    function buildPosFilters(alias) {
+      const filters = [];
+      const prefix = alias ? `${alias}.` : "";
+
+      if (dateFrom.value) filters.push(`${prefix}CreatedTime >= '${dateFrom.value}'`);
+      if (dateTo.value) filters.push(`${prefix}CreatedTime < dateadd(day, 1, '${dateTo.value}')`);
+      if (itemGroup.value) filters.push(`exists (
+    select 1
+    from PosDtl d
+    left join Item i on i.ItemCode = d.ItemCode
+    where d.DocKey = ${prefix}DocKey
+      and i.ItemGroup = '${escapeSql(itemGroup.value)}'
+  )`);
+
+      return filters;
+    }
+
+    function buildDetailFilters(posAlias, itemAlias) {
+      const filters = [];
+
+      if (dateFrom.value) filters.push(`${posAlias}.CreatedTime >= '${dateFrom.value}'`);
+      if (dateTo.value) filters.push(`${posAlias}.CreatedTime < dateadd(day, 1, '${dateTo.value}')`);
+      if (itemGroup.value) filters.push(`${itemAlias}.ItemGroup = '${escapeSql(itemGroup.value)}'`);
+
+      return filters;
+    }
+
+    async function loadItemGroups() {
+      if (!databaseSelect.value) {
+        itemGroup.disabled = true;
+        itemGroup.innerHTML = `<option value="">All item groups</option>`;
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/item-groups", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serverInstance: serverInstance.value,
+            database: databaseSelect.value,
+            username: username.value,
+            password: password.value
+          })
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load item groups.");
+        }
+
+        itemGroup.disabled = false;
+        itemGroup.innerHTML = `<option value="">All item groups</option>${payload.itemGroups
+          .map((group) => `<option>${escapeHtml(group)}</option>`)
+          .join("")}`;
+      } catch {
+        itemGroup.disabled = true;
+        itemGroup.innerHTML = `<option value="">All item groups</option>`;
+      }
+    }
+
+    async function loadDatabaseSize() {
+      if (!databaseSelect.value) {
+        databaseSize.textContent = "Database size will appear after selection.";
+        return;
+      }
+
+      databaseSize.textContent = "Loading database size...";
+
+      try {
+        const response = await fetch("/api/database-size", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serverInstance: serverInstance.value,
+            database: databaseSelect.value,
+            username: username.value,
+            password: password.value
+          })
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load database size.");
+        }
+
+        databaseSize.textContent = `Size: ${payload.displaySize}`;
+      } catch (error) {
+        databaseSize.textContent = error.message;
+      }
+    }
+
+    async function runQuery() {
+      if (databaseSelect.disabled || !databaseSelect.value) {
+        queryMessage.textContent = "Connect first, then select a database before running a query.";
+        return;
+      }
+
+      runQueryButton.disabled = true;
+      runQueryButton.textContent = "Running...";
+      queryMessage.textContent = `Running query on ${databaseSelect.value}...`;
+
+      try {
+        const response = await fetch("/api/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serverInstance: serverInstance.value,
+            database: databaseSelect.value,
+            username: username.value,
+            password: password.value,
+            query: sqlInput.value
+          })
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || "Query failed.");
+        }
+
+        renderResults(payload);
+        if (sqlInput.value.includes("TotalSalesExcludeTax") && sqlInput.value.includes("TotalTaxAmount")) {
+          renderDailySalesPrintPreview(payload.rows || []);
+        }
+        queryMessage.textContent = `Query complete. ${payload.rows.length} rows returned from ${databaseSelect.value}.`;
+      } catch (error) {
+        queryMessage.textContent = error.message;
+      } finally {
+        runQueryButton.disabled = false;
+        runQueryButton.textContent = "Run Query";
+      }
+    }
+
+    function renderDailySalesPrintPreview(rows) {
+      const fromDate = dateFrom.value ? parseLocalDate(dateFrom.value) : getMinReportDate(rows);
+      const toDate = dateTo.value ? parseLocalDate(dateTo.value) : getMaxReportDate(rows);
+      const salesMap = makeDailyValueMap(rows, "SalesDate", "TotalSalesExcludeTax");
+      const taxMap = makeDailyValueMap(rows, "SalesDate", "TotalTaxAmount");
+      const monthDate = fromDate || toDate || new Date();
+
+      printPage.innerHTML = `
+        <h1 class="print-title">Daily Sales Report</h1>
+        <div class="print-meta">
+          <div>Date From&nbsp;&nbsp;&nbsp;&nbsp;${formatDateSlash(fromDate)}&nbsp;&nbsp;&nbsp;&nbsp;To&nbsp;&nbsp;&nbsp;${formatDateSlash(toDate)}</div>
+          <div>Page 1 of 1</div>
+        </div>
+        ${buildDailyReportTable(monthDate, "Total Sales (Exclude Tax)", salesMap)}
+        ${buildDailyReportTable(monthDate, "Total Tax Amount", taxMap)}
+      `;
+      printReportPreview.hidden = false;
+      printReportPreview.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function buildDailyReportTable(monthDate, label, values) {
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const rows = [];
+      const total = Array.from({ length: daysInMonth }, (_, index) => values.get(index + 1) || 0)
+        .reduce((sum, value) => sum + value, 0);
+
+      for (let row = 0; row < 11; row++) {
+        const dayA = row + 1;
+        const dayB = row + 12;
+        const dayC = row + 23;
+        rows.push(`
+          <tr>
+            ${row === 0 ? `<td class="report-label" rowspan="2">${formatMonthYear(monthDate)}<br><br>${label}</td>` : ""}
+            ${row === 2 ? `<td class="report-label" rowspan="9"></td>` : ""}
+            ${buildDayCells(dayA, daysInMonth, values)}
+            ${buildDayCells(dayB, daysInMonth, values)}
+            ${buildDayCells(dayC, daysInMonth, values)}
+          </tr>
+        `);
+      }
+
+      return `
+        <table class="report-table">
+          <tbody>
+            ${rows.join("")}
+            <tr>
+              <td class="report-total-label" colspan="6">${escapeHtml(label)} :</td>
+              <td class="report-total-value">${formatCurrency(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    }
+
+    function buildDayCells(day, daysInMonth, values) {
+      if (day > daysInMonth) {
+        return `<td class="report-day"></td><td class="report-amount"></td>`;
+      }
+
+      return `<td class="report-day">${day}</td><td class="report-amount">${formatCurrency(values.get(day) || 0)}</td>`;
+    }
+
+    function makeDailyValueMap(rows, dateColumn, valueColumn) {
+      return rows.reduce((map, row) => {
+        const date = parseDateValue(row[dateColumn]);
+        if (date) {
+          map.set(date.getDate(), toNumber(row[valueColumn]));
+        }
+        return map;
+      }, new Map());
+    }
+
+    function getMinReportDate(rows) {
+      const dates = rows.map((row) => parseDateValue(row.SalesDate)).filter(Boolean).sort((a, b) => a - b);
+      return dates[0] || null;
+    }
+
+    function getMaxReportDate(rows) {
+      const dates = rows.map((row) => parseDateValue(row.SalesDate)).filter(Boolean).sort((a, b) => a - b);
+      return dates[dates.length - 1] || null;
+    }
+
+    function parseLocalDate(value) {
+      if (!value) {
+        return null;
+      }
+
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function formatDateSlash(date) {
+      if (!date) {
+        return "";
+      }
+
+      const pad = (number) => String(number).padStart(2, "0");
+      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+    }
+
+    function formatMonthYear(date) {
+      return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+
+    function renderResults(result) {
+      const rows = result.rows || [];
+      const columns = result.columns || [];
+      latestResult = { columns, rows };
+      renderReportAnalysis(columns, rows);
+      renderBarChart(columns, rows);
+      renderTable(columns, rows);
+    }
+
+    function exportLatestCsv() {
+      if (!latestResult.columns.length) {
+        queryMessage.textContent = "Run a query first, then export CSV.";
+        return;
+      }
+
+      const csv = [
+        latestResult.columns.map(csvEscape).join(","),
+        ...latestResult.rows.map((row) => latestResult.columns.map((column) => csvEscape(formatValue(row[column]))).join(","))
+      ].join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const databaseName = databaseSelect.value || "database";
+      link.href = url;
+      link.download = `${databaseName}-query-result.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      queryMessage.textContent = "CSV exported from the latest query result.";
+    }
+
+    function showPowerBiQuery() {
+      const server = serverInstance.value || ".\\A2019";
+      const database = databaseSelect.value || "YourDatabase";
+      const query = sqlInput.value.trim().replace(/"/g, "\"\"");
+
+      powerBiQuery.value = `let
+    Source = Sql.Database("${server}", "${database}", [Query="${query}"])
+in
+    Source`;
+      powerBiPanel.hidden = false;
+      powerBiPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      queryMessage.textContent = "Power BI query generated.";
+    }
+
+    function csvEscape(value) {
+      const text = String(value ?? "");
+      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    }
+
+    function renderBarChart(columns, rows) {
+      const chartConfig = pickChartColumns(columns, rows);
+
+      if (!chartConfig || !rows.length) {
+        chartPreview.hidden = true;
+        return;
+      }
+
+      const chartRows = rows.slice(0, 40).map((row) => ({
+        label: formatChartLabel(row[chartConfig.label]),
+        value: toNumber(row[chartConfig.value])
+      }));
+      const max = Math.max(...chartRows.map((row) => Math.abs(row.value)), 0);
+
+      if (!max) {
+        chartPreview.hidden = true;
+        return;
+      }
+
+      barChart.innerHTML = chartRows.map((row) => {
+        const height = Math.max(2, Math.round((Math.abs(row.value) / max) * 190));
+        return `
+          <div class="bar-item" title="${escapeHtml(row.label)}: ${escapeHtml(formatNumber(row.value))}">
+            <div class="bar" style="height: ${height}px;"></div>
+            <div class="bar-label">${escapeHtml(row.label)}</div>
+          </div>
+        `;
+      }).join("");
+      chartNote.textContent = `${chartConfig.value} by ${chartConfig.label}. Showing ${chartRows.length} bar${chartRows.length === 1 ? "" : "s"}.`;
+      chartPreview.hidden = false;
+    }
+
+    function pickChartColumns(columns, rows) {
+      const lookup = makeColumnLookup(columns);
+      const preferredPairs = [
+        ["SalesDate", "TotalSalesExcludeTax"],
+        ["TransactionDate", "TotalTransactions"],
+        ["PaymentDate", "FinalTotal"],
+        ["ItemCode", "Amount"],
+        ["Description", "Amount"],
+        ["DocDate", "FinalTotal"],
+        ["CreatedTime", "FinalTotal"]
+      ];
+
+      for (const [label, value] of preferredPairs) {
+        const labelColumn = getColumn(lookup, label);
+        const valueColumn = getColumn(lookup, value);
+        if (labelColumn && valueColumn) {
+          return { label: labelColumn, value: valueColumn };
+        }
+      }
+
+      const labelColumn = columns.find((column) => rows.some((row) => formatValue(row[column])));
+      const valueColumn = columns.find((column) => rows.some((row) => Number.isFinite(Number(row[column]))));
+      return labelColumn && valueColumn ? { label: labelColumn, value: valueColumn } : null;
+    }
+
+    function formatChartLabel(value) {
+      const date = parseDateValue(value);
+      if (date) {
+        return formatDateOnly(date);
+      }
+
+      const text = formatValue(value);
+      return text.length > 14 ? `${text.slice(0, 13)}...` : text;
+    }
+
+    function renderReportAnalysis(columns, rows) {
+      if (!columns.length) {
+        reportAnalysis.hidden = true;
+        return;
+      }
+
+      const lookup = makeColumnLookup(columns);
+      const tableType = detectPosTable(lookup);
+      const summary = [];
+      const breakdown = [];
+
+      summary.push(["Rows", rows.length.toLocaleString()]);
+      summary.push(["Columns", columns.length.toLocaleString()]);
+
+      if (tableType === "pos") {
+        addMoneySummary(summary, rows, lookup, "FinalTotal", "Final Total");
+        addMoneySummary(summary, rows, lookup, "NetTotal", "Net Total");
+        addMoneySummary(summary, rows, lookup, "TotalDiscount", "Discount");
+        addMoneySummary(summary, rows, lookup, "Balance", "Balance");
+        addDateRange(breakdown, rows, lookup, getColumn(lookup, "CreatedTime") ? "CreatedTime" : "DocDate", "Transaction Date");
+        addTopValues(breakdown, rows, lookup, "UserID", "Top User");
+        addTopValues(breakdown, rows, lookup, "TerminalID", "Top Terminal");
+        addStatusCount(breakdown, rows, lookup, "Cancelled", "Cancelled");
+        addStatusCount(breakdown, rows, lookup, "Posted", "Posted");
+      } else if (tableType === "posdtl") {
+        addMoneySummary(summary, rows, lookup, "SubTotal", "Subtotal");
+        addMoneySummary(summary, rows, lookup, "Total", "Total");
+        addMoneySummary(summary, rows, lookup, "DiscountAmt", "Discount");
+        addQuantitySummary(summary, rows, lookup, "Qty", "Quantity");
+        addTopValues(breakdown, rows, lookup, "ItemCode", "Top Item Code");
+        addTopValues(breakdown, rows, lookup, "Description", "Top Description");
+        addTopValues(breakdown, rows, lookup, "UOM", "Top UOM");
+      } else if (tableType === "pospayment") {
+        addMoneySummary(summary, rows, lookup, "PaymentAmt", "Payment Amount");
+        addMoneySummary(summary, rows, lookup, "Amount", "Amount");
+        addMoneySummary(summary, rows, lookup, "CashPayment", "Cash");
+        addMoneySummary(summary, rows, lookup, "CCPayment", "Credit Card");
+        addTopValues(breakdown, rows, lookup, "PaymentMethod", "Top Payment Method");
+        addTopValues(breakdown, rows, lookup, "PaymentType", "Top Payment Type");
+        addTopValues(breakdown, rows, lookup, "DocNo", "Top Document");
+      } else {
+        addGenericAnalysis(summary, breakdown, columns, rows, lookup);
+      }
+
+      analysisSummary.innerHTML = summary.map(([label, value]) => `
+        <div class="stat"><span class="small">${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>
+      `).join("");
+      analysisBreakdown.innerHTML = breakdown.length
+        ? breakdown.map(([label, value]) => `<li><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></li>`).join("")
+        : `<li><span>Analysis</span><span>${escapeHtml(tableType === "unknown" ? "Basic table preview" : tableType.toUpperCase())}</span></li>`;
+      reportAnalysis.hidden = false;
+    }
+
+    function makeColumnLookup(columns) {
+      return columns.reduce((map, column) => {
+        map[column.toLowerCase()] = column;
+        return map;
+      }, {});
+    }
+
+    function detectPosTable(lookup) {
+      if (hasAnyColumn(lookup, ["itemcode", "uom", "qty", "unitprice", "subtotal"]) && hasAnyColumn(lookup, ["dockey", "docno"])) {
+        return "posdtl";
+      }
+
+      if (hasAnyColumn(lookup, ["finaltotal", "nettotal", "createdtime", "docdate", "terminalid", "userid"]) && hasAnyColumn(lookup, ["dockey", "docno"])) {
+        return "pos";
+      }
+
+      if (hasAnyColumn(lookup, ["paymentamt", "paymentmethod", "paymenttype"]) || hasAnyColumn(lookup, ["cashpayment", "ccpayment", "ewalletpayment"])) {
+        return "pospayment";
+      }
+
+      return "unknown";
+    }
+
+    function hasAnyColumn(lookup, names) {
+      return names.some((name) => lookup[name]);
+    }
+
+    function getColumn(lookup, name) {
+      return lookup[name.toLowerCase()];
+    }
+
+    function addMoneySummary(summary, rows, lookup, columnName, label) {
+      const column = getColumn(lookup, columnName);
+      if (!column) {
+        return;
+      }
+
+      const total = rows.reduce((sum, row) => sum + toNumber(row[column]), 0);
+      summary.push([label, formatCurrency(total)]);
+    }
+
+    function addQuantitySummary(summary, rows, lookup, columnName, label) {
+      const column = getColumn(lookup, columnName);
+      if (!column) {
+        return;
+      }
+
+      const total = rows.reduce((sum, row) => sum + toNumber(row[column]), 0);
+      summary.push([label, formatNumber(total)]);
+    }
+
+    function addDateRange(breakdown, rows, lookup, columnName, label) {
+      const column = getColumn(lookup, columnName);
+      if (!column) {
+        return;
+      }
+
+      const dates = rows.map((row) => parseDateValue(row[column])).filter(Boolean).sort((a, b) => a - b);
+      if (dates.length) {
+        breakdown.push([label, `${formatDateOnly(dates[0])} to ${formatDateOnly(dates[dates.length - 1])}`]);
+      }
+    }
+
+    function addTopValues(breakdown, rows, lookup, columnName, label) {
+      const column = getColumn(lookup, columnName);
+      if (!column) {
+        return;
+      }
+
+      const counts = rows.reduce((map, row) => {
+        const value = formatValue(row[column]) || "(blank)";
+        map.set(value, (map.get(value) || 0) + 1);
+        return map;
+      }, new Map());
+      const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
+
+      if (top) {
+        breakdown.push([label, `${top[0]} (${top[1].toLocaleString()})`]);
+      }
+    }
+
+    function addStatusCount(breakdown, rows, lookup, columnName, label) {
+      const column = getColumn(lookup, columnName);
+      if (!column) {
+        return;
+      }
+
+      const yesCount = rows.filter((row) => ["T", "Y", "1", "TRUE"].includes(String(row[column]).toUpperCase())).length;
+      breakdown.push([label, `${yesCount.toLocaleString()} of ${rows.length.toLocaleString()}`]);
+    }
+
+    function addGenericAnalysis(summary, breakdown, columns, rows, lookup) {
+      const firstNumeric = columns.find((column) => rows.some((row) => Number.isFinite(Number(row[column]))));
+      if (firstNumeric) {
+        const total = rows.reduce((sum, row) => sum + toNumber(row[firstNumeric]), 0);
+        summary.push([`${firstNumeric} Total`, formatNumber(total)]);
+      }
+
+      const firstDate = columns.find((column) => rows.some((row) => parseDateValue(row[column])));
+      if (firstDate) {
+        addDateRange(breakdown, rows, lookup, firstDate, firstDate);
+      }
+    }
+
+    function renderTable(columns, rows) {
+      if (!columns.length) {
+        previewTable.innerHTML = "<thead><tr><th>No columns</th></tr></thead><tbody><tr><td>No rows returned.</td></tr></tbody>";
+        return;
+      }
+
+      previewTable.innerHTML = `
+        <thead><tr>${columns.map((column, index) => `<th style="width: ${getInitialColumnWidth(column)}px;">${escapeHtml(column)}<span class="resize-handle" data-column-index="${index}" aria-hidden="true"></span></th>`).join("")}</tr></thead>
+        <tbody>${rows.length
+          ? rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(formatValue(row[column]))}</td>`).join("")}</tr>`).join("")
+          : `<tr><td colspan="${columns.length}">No rows returned.</td></tr>`}
+        </tbody>
+      `;
+      enableColumnResize();
+    }
+
+    function getInitialColumnWidth(column) {
+      return Math.min(Math.max(String(column).length * 10 + 44, 120), 260);
+    }
+
+    function enableColumnResize() {
+      previewTable.querySelectorAll(".resize-handle").forEach((handle) => {
+        handle.addEventListener("pointerdown", (event) => {
+          const th = handle.parentElement;
+          const columnIndex = Number(handle.dataset.columnIndex);
+          const startX = event.clientX;
+          const startWidth = th.offsetWidth;
+
+          handle.classList.add("active");
+          handle.setPointerCapture(event.pointerId);
+
+          const onMove = (moveEvent) => {
+            const nextWidth = Math.max(70, startWidth + moveEvent.clientX - startX);
+            setColumnWidth(columnIndex, nextWidth);
+          };
+
+          const onUp = () => {
+            handle.classList.remove("active");
+            handle.removeEventListener("pointermove", onMove);
+            handle.removeEventListener("pointerup", onUp);
+            handle.removeEventListener("pointercancel", onUp);
+          };
+
+          handle.addEventListener("pointermove", onMove);
+          handle.addEventListener("pointerup", onUp);
+          handle.addEventListener("pointercancel", onUp);
+        });
+      });
+    }
+
+    function setColumnWidth(columnIndex, width) {
+      previewTable.querySelectorAll("tr").forEach((row) => {
+        const cell = row.children[columnIndex];
+        if (cell) {
+          cell.style.width = `${width}px`;
+          cell.style.minWidth = `${width}px`;
+          cell.style.maxWidth = `${width}px`;
+        }
+      });
+    }
+
+    function renderNullHealth(columns, rows) {
+      if (!columns.length) {
+        nullHealth.innerHTML = `<p class="small">No columns to inspect.</p>`;
+        return;
+      }
+
+      nullHealth.innerHTML = columns.map((column) => {
+        const nullCount = rows.filter((row) => row[column] === null || row[column] === undefined).length;
+        const percent = rows.length ? Math.round((nullCount / rows.length) * 100) : 0;
+        return `
+          <div>
+            <div class="bar-meta"><span>${escapeHtml(column)}</span><span>${percent}%</span></div>
+            <div class="track"><div class="fill" style="width: ${percent}%;"></div></div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderNumericSummary(columns, rows) {
+      const numericColumns = columns.filter((column) => rows.some((row) => Number.isFinite(Number(row[column]))));
+
+      if (!numericColumns.length) {
+        numericSummary.innerHTML = `<div class="stat"><span class="small">Numeric columns</span><b>None found</b></div>`;
+        return;
+      }
+
+      numericSummary.innerHTML = numericColumns.slice(0, 4).map((column) => {
+        const values = rows.map((row) => Number(row[column])).filter(Number.isFinite);
+        const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+        return `<div class="stat"><span class="small">${escapeHtml(column)} average</span><b>${formatNumber(average)}</b></div>`;
+      }).join("");
+    }
+
+    function formatValue(value) {
+      if (value === null || value === undefined) {
+        return "";
+      }
+
+      const microsoftDate = String(value).match(/^\/Date\((\d+)\)\/$/);
+      if (microsoftDate) {
+        return formatDateTime(new Date(Number(microsoftDate[1])));
+      }
+
+      return String(value);
+    }
+
+    function formatDateTime(date) {
+      const pad = (number, size = 2) => String(number).padStart(size, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
+    }
+
+    function formatNumber(value) {
+      return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
+    }
+
+    function formatCurrency(value) {
+      return Number.isFinite(value) ? value.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }) : "0.00";
+    }
+
+    function toNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : 0;
+    }
+
+    function parseDateValue(value) {
+      if (!value) {
+        return null;
+      }
+
+      const microsoftDate = String(value).match(/^\/Date\((\d+)\)\/$/);
+      const date = microsoftDate ? new Date(Number(microsoftDate[1])) : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatDateOnly(date) {
+      const pad = (number) => String(number).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    runQueryButton.addEventListener("click", runQuery);
+  </script>
+</body>
+</html>
